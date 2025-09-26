@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RptDataSource xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Name="Shared_Data_Source">
+  <ConnectionProperties>
+    <Extension>SQL</Extension>
+    <ConnectString>Data Source=PIYUSH\SQLEXPRESS;Initial Catalog=Sales_DW;TrustServerCertificate=True</ConnectString>
+  </ConnectionProperties>
+  <DataSourceID>f840046d-57ec-422d-b218-e4ec93ca3009</DataSourceID>
+</RptDataSource>

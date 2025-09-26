@@ -1,0 +1,183 @@
+LOAD CSV WITH HEADERS FROM 'file:///Product_Categories.csv' AS row
+CREATE (:ProductCategory {
+  ProductCategoryKey: row.ProductCategoryKey,
+  CategoryName: row.CategoryName
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///Product_Subcategories.csv' AS row
+CREATE (:ProductSubcategory {
+  ProductSubcategoryKey: row.ProductSubcategoryKey,
+  SubcategoryName: row.SubcategoryName,
+  ProductCategoryKey: row.ProductCategoryKey
+});
+
+
+LOAD CSV WITH HEADERS FROM 'file:///Product.csv' AS row
+CREATE (:Product {
+  ProductKey: row.ProductKey,
+  ProductSubcategoryKey: row.ProductSubcategoryKey,
+  ProductName: row.ProductName,
+  ModelName: row.ModelName,
+  ProductDescription: row.ProductDescription,
+  ProductColor: row.ProductColor,
+  ProductSize: row.ProductSize,
+  ProductStyle: row.ProductStyle,
+  ProductCost: toFloat(row.ProductCost),
+  ProductPrice: toFloat(row.ProductPrice)
+});
+
+
+LOAD CSV WITH HEADERS FROM 'file:///Customer.csv' AS row
+WITH row, split(row.BirthDate, "-") AS dateParts
+WHERE size(dateParts) = 3
+  AND toInteger(dateParts[0]) >= 1 AND toInteger(dateParts[0]) <= 12
+  AND toInteger(dateParts[1]) >= 1 AND toInteger(dateParts[1]) <= 31
+  AND toInteger(dateParts[2]) >= 1900 AND toInteger(dateParts[2]) <= 2100
+WITH row, date(dateParts[2] + "-" + dateParts[0] + "-" + dateParts[1]) AS parsedBirthDate
+CREATE (:Customer {
+  CustomerKey: row.CustomerKey,
+  Prefix: row.Prefix,
+  FirstName: row.FirstName,
+  LastName: row.LastName,
+  BirthDate: parsedBirthDate,
+  MaritalStatus: row.MaritalStatus,
+  Gender: row.Gender,
+  EmailAddress: row.EmailAddress,
+  AnnualIncome: toFloat(row.AnnualIncome),
+  TotalChildren: toInteger(row.TotalChildren),
+  EducationLevel: row.EducationLevel,
+  Occupation: row.Occupation,
+  HomeOwner: toBoolean(row.HomeOwner)
+});
+
+
+LOAD CSV WITH HEADERS FROM 'file:///Territory.csv' AS row
+CREATE (:Territory {
+  SalesTerritoryKey: row.SalesTerritoryKey,
+  Region: row.Region,
+  Country: row.Country,
+  Continent: row.Continent
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///Sales_2022.csv' AS row
+WITH row,
+     split(row.OrderDate, "/") AS OrderParts,
+     split(row.StockDate, "/") AS StockParts
+WHERE size(OrderParts) = 3 AND size(StockParts) = 3
+  AND toInteger(OrderParts[0]) >= 1 AND toInteger(OrderParts[0]) <= 31
+  AND toInteger(OrderParts[1]) >= 1 AND toInteger(OrderParts[1]) <= 12
+  AND toInteger(OrderParts[2]) >= 1900 AND toInteger(OrderParts[2]) <= 2100
+  AND toInteger(StockParts[0]) >= 1 AND toInteger(StockParts[0]) <= 31
+  AND toInteger(StockParts[1]) >= 1 AND toInteger(StockParts[1]) <= 12
+  AND toInteger(StockParts[2]) >= 1900 AND toInteger(StockParts[2]) <= 2100
+WITH row,
+     date(OrderParts[2] + "-" + OrderParts[1] + "-" + OrderParts[0]) AS parsedOrderDate,
+     date(StockParts[2] + "-" + StockParts[1] + "-" + StockParts[0]) AS parsedStockDate
+CREATE (:Order {
+  OrderDate: parsedOrderDate,
+  StockDate: parsedStockDate,
+  OrderNumber: toString(row.OrderNumber),
+  ProductKey: row.ProductKey,
+  CustomerKey: row.CustomerKey,
+  TerritoryKey: row.TerritoryKey,
+  OrderLineItem: toInteger(row.OrderLineItem),
+  OrderQuantity: toInteger(row.OrderQuantity),
+  Year: 2022
+});
+
+CREATE CONSTRAINT FOR (p:Product) REQUIRE p.ProductKey IS UNIQUE;
+CREATE CONSTRAINT FOR (c:Customer) REQUIRE c.CustomerKey IS UNIQUE;
+CREATE CONSTRAINT FOR (t:Territory) REQUIRE t.SalesTerritoryKey IS UNIQUE;
+CREATE INDEX FOR (o:Order) ON (o.OrderNumber);
+CREATE INDEX FOR (d:Date) ON (d.Date);
+
+// Create relationships between Order and stockdate
+MATCH (o:Order)
+WITH o, o.StockDate AS stockDate
+MERGE (d:Date {Date: stockDate})
+CREATE (o)-[:STOCKED_ON]->(d);
+
+// Create date relationships (optimized)
+MATCH (o:Order)
+WITH o, o.OrderDate AS orderDate
+MERGE (d:Date {Date: orderDate})
+CREATE (o)-[:ORDERED_ON]->(d);
+
+
+// Create relationships between Subcategories and Categories (optimized)
+MATCH (s:ProductSubcategory)
+MATCH (c:ProductCategory {ProductCategoryKey: s.ProductCategoryKey})
+CREATE (s)-[:BELONGS_TO_CATEGORY]->(c);
+
+// Create relationships between Products and Subcategories (optimized)
+MATCH (p:Product)
+MATCH (s:ProductSubcategory {ProductSubcategoryKey: p.ProductSubcategoryKey})
+CREATE (p)-[:BELONGS_TO_SUBCATEGORY]->(s);
+
+
+// Create relationships between Orders and Territories (optimized)
+MATCH (o:Order)
+MATCH (t:Territory {SalesTerritoryKey: o.TerritoryKey})
+CREATE (o)-[:SOLD_IN]->(t);
+
+// Create relationships between Orders and Customers (optimized)
+MATCH (o:Order)
+MATCH (c:Customer {CustomerKey: o.CustomerKey})
+CREATE (o)-[:PLACED_BY]->(c);
+
+
+// Create relationships between Orders and Products (optimized)
+MATCH (o:Order)
+MATCH (p:Product {ProductKey: o.ProductKey})
+CREATE (o)-[:CONTAINS]->(p);
+
+
+MATCH (o:Order)-[:ORDERED_ON]->(d:Date)
+WITH date(d.Date).dayOfWeek AS dayNum, COUNT(o) AS OrderCount
+RETURN 
+  CASE dayNum
+    WHEN 1 THEN 'Monday'
+    WHEN 2 THEN 'Tuesday'
+    WHEN 3 THEN 'Wednesday'
+    WHEN 4 THEN 'Thursday'
+    WHEN 5 THEN 'Friday'
+    WHEN 6 THEN 'Saturday'
+    WHEN 7 THEN 'Sunday'
+  END AS Weekday,
+  OrderCount
+ORDER BY OrderCount DESC;
+
+
+//Find the most popular products (top 5 by order count)
+MATCH (o:Order)-[:CONTAINS]->(p:Product)
+RETURN p.ProductName, COUNT(o) AS OrderCount
+ORDER BY OrderCount DESC
+LIMIT 5;
+
+//Number of orders per region:
+MATCH (o:Order)-[:SOLD_IN]->(t:Territory)
+RETURN t.Region AS Region, COUNT(o) AS OrderCount;
+
+
+//Order count per month in 2022:
+MATCH (o:Order)-[:ORDERED_ON]->(d:Date)
+WHERE o.Year = 2022
+RETURN d.Date.month AS Month, COUNT(o) AS Orders
+ORDER BY Month;
+
+//Products never ordered:
+MATCH (p:Product)
+WHERE NOT EXISTS ((:Order)-[:CONTAINS]->(p))
+RETURN p.ProductName, p.ProductKey
+
+
+//Number of Orders Per Day (Based on Order Date):
+MATCH (o:Order)-[:ORDERED_ON]->(d:Date)
+RETURN d.Date AS OrderDate, COUNT(o) AS OrdersPerDay
+ORDER BY OrdersPerDay DESC;
+
+
+//Sales order by color
+MATCH (o:Order)-[:CONTAINS]->(p:Product)
+RETURN p.ProductColor, Count(*) AS OrderCount
+ORDER BY OrderCount DESC;
