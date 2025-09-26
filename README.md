@@ -20,8 +20,8 @@ Impact of discounts & pricing strategies
 
 **📂 Datasets**
 
-Grocery Sales Dataset: Kaggle – Grocery Sales
-AdventureWorks Dataset (for SQL vs. CQL comparison): Kaggle – AdventureWorks
+Grocery Sales Dataset: Kaggle – Grocery Sales (https://www.kaggle.com/datasets/andrexibiza/grocery-sales-dataset) 
+AdventureWorks Dataset (for SQL vs. CQL comparison): Kaggle – AdventureWorks (https://www.kaggle.com/datasets/sadia21121/adventure-bike-sales-dataset)
 
 **🏗️ Project Workflow**
   **1. Schema Design**
