@@ -25,6 +25,7 @@ Grocery Sales Dataset: Kaggle – Grocery Sales (https://www.kaggle.com/datasets
 AdventureWorks Dataset (for SQL vs. CQL comparison): Kaggle – AdventureWorks (https://www.kaggle.com/datasets/sadia21121/adventure-bike-sales-dataset)
 
 **🏗️ Project Workflow**
+
   **1. Schema Design**
 
   Designed using a Star Schema with 5 Dimension Tables:
